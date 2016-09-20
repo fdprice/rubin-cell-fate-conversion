@@ -58,6 +58,14 @@ each batch/well combination and use those IDs as the column names.
 ```{r read-plates, eval=!file.exists("plates.RData")}
 setwd("~/git/rubin-cell-fate-conversion")
 
+
+SCMyo = read.table("M6.SCMyo.unq.refseq.umi.dat", header=TRUE, row.names = 1)
+
+SCMyo2 <- SCMyo[-c(7:13, 19:25, 31:37, 43:49, 55:61, 67:73, 79:85, 91:97)]
+SCMyo3 <- SCMyo2[-c(16, 21, 26, 31, 36, 41)]
+colnames(SCMyo3) = c("SC", "10T 5aza D5", "IF AdMyoD D10", "IF", "SC", "SC", "10T 5aza D10", "IF AdMyoD D10", "IF", "SC", "SC", "10T 5aza D10", "IPS", "IF", "10T", "10T 5aza D10", "BJ Fib", "IF", "10T", "IF AdMyoD D5", "Myo", "SC", "10T", "IF AdMyoD D5", "Myo", "SC", "10T 5aza D5", "IF AdMyoD D5", "Myo", "SC", "10T 5aza D5", "IF AdMyoD D10", "Myo", "SC")
+write.table(SCMyo3, file="data/M7.SCMyo.dat", row.names = TRUE, col.names = TRUE, quote = FALSE, sep = "\t")
+
 plate_reader = function(fn) {
   batch = strsplit(basename(fn), ".", fixed=TRUE)[[1]][1]
   data = read.table(fn, header=TRUE, row.names=1)
@@ -82,13 +90,29 @@ welldata = read_csv(welldata_fn) %>%
   gather(column, treatment, -row) %>%
   mutate(well=paste(row, column, sep="")) %>%
   dplyr::select(well, treatment)
+write.csv(welldata, file="metadata/welldata.csv")
+# I used the welldata file to append a column that contained the targets each of the compounds work on. I did this in excel as I needed to splice the master compound library in a weird way to get it to match up with the layout I used in the 384w plate. We can now read this file in as welldata and the previous welldata was saved as welldataold
+welldata_fn2 = "metadata/WellTreatmentTarget.csv"
+welldatatarg = read_csv(welldata_fn2) %>%
+  dplyr::select(well,treatment,Targets)
+# In hindsight I could have used something like this to append in R the targets to our original welldata based on the "well" 
+# welldatanew = welldatatarg %>% left_join(welldata, by="well")
+
+ 
+ 
 identities = data.frame(str_split_fixed(colnames(plates), "_", 3))
 colnames(identities) = c("batch", "drop", "well")
 identities$id = colnames(plates)
 welldata = identities %>% dplyr::select(batch, well) %>%
-         left_join(welldata, by="well")
+         left_join(welldatatarg, by="well")
 rownames(welldata) = colnames(plates)
 welldata$sample = colnames(plates)
+
+
+#Dropping NAs
+#Drop Cols colnames =
+#plates[, colnames(plates) != ""]
+#plates[, !is.na(colnames(plates))]
 ```
 
 
@@ -97,6 +121,7 @@ and make sure there are no NA counts.
 
 ```{r verify-data}
 dim(welldata)
+save(welldata, file="welldatatarg.RData")
 dim(plates)
 table(rownames(welldata) %in% colnames(plates))
 corner(plates)
@@ -108,7 +133,8 @@ Looks like we are good to go. While we're at it we will load the positive
 control data.
 
 ```{r load-positive-control-data}
-positive_fn = "metadata/Feo_positive_controls_modified.unq.refseq.umi.dat"
+#work in progress. This file still contains many blank columns 6:12. Need to refine and drop stuff
+positive_fn = "data/M6.SCMyo.unq.refseq.umi.dat"
 positive = read.table(positive_fn, header=TRUE, row.names=rownames(plates))
 positive$id = NULL
 positive_samples = data.frame(str_split_fixed(colnames(positive), "_", 3))
@@ -118,6 +144,7 @@ positive_welldata = data.frame(batch=positive_samples$X1,
                                well=positive_samples$X1)
 
 #Better to do it this way because positive_samples is actually a vector not a dataframe
+positive_samples$X1 = "M6"
 positive_samples$X2 = "Fresh"
 positive_samples$X3 = c(1,2,3,4,5,1,6,2,7,3,8,4,9)
 ```
@@ -234,6 +261,7 @@ are considering to ~13,500.
 ```{r drop-low-genes}
 plates = plates[rowSums(plates > 0) > 4 & rowSums(plates) > 100,]
 ```
+# at this point we should save the Plates.RData file for GLM later on. 
 
 This is what we're left with in terms of samples:
 

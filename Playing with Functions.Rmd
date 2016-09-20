@@ -1,0 +1,32 @@
+---
+title: "Untitled"
+output: html_document
+---
+library(useful)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+library(MASS)
+
+
+
+
+
+setwd("~/git/rubin-cell-fate-conversion")
+welldata_fn = "metadata/List of all samples.csv"
+welldata = read_csv(welldata_fn) %>%
+  gather(column, treatment, -row) %>%
+  mutate(well = paste(row, column, sep="")) %>%
+  dplyr::select(well, treatment)
+identities = data.frame(str_split_fixed(colnames(plates), "_", 3))
+colnames(identities) = c("batch", "drop", "well")
+identities$id = colnames(plates)
+welldata = identities %>% dplyr::select(batch, well) %>%
+         left_join(welldata, by="well")
+rownames(welldata) = colnames(plates)
+welldata$sample = colnames(plates)
+
+# at 9 
+# at 10 
