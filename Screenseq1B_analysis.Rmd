@@ -336,11 +336,11 @@ So now we have a set of genes along PC1 that we can use to do PCA with all of
 the chemicals.
 
 ```{r original-pca}
-seurat.data = pca(seurat.data, pc.genes=rownames(components))
+seurat.data = PCA(seurat.data, pc.genes=rownames(components))
 welldata$classes = ifelse(welldata$treatment == "DMSO", "DMSO",
       ifelse(welldata$treatment == "AdMyoD", "AdMyoD", "other"))
 rot = seurat.data@pca.rot %>%
-  add_rownames(var="sample")  %>%
+  tibble::rownames_to_column(var="sample")  %>%
   left_join(welldata, by="sample")
 ggplot(rot, aes(PC1, PC2, color=classes, label=treatment)) +
   geom_point(size=1) +
@@ -353,28 +353,25 @@ towards it if we zoom in on the sector closest to the AdMyoD samples:
 
 ```{r zoomed-pca}
 ggplot(rot, aes(PC1, PC2, color=batch, label=treatment)) +
-  coord_cartesian(xlim=c(0.00, 0.05), ylim=c(-0.06, 0.05)) +
+  coord_cartesian(xlim=c(-10.00, 10.00), ylim=c(0.00, -6.00)) +
   geom_text(size=2) +
   theme_bw()
 ```
 
-Repsox, SB43152, CP-673451 and CHIR-124 all look like good hits and there are
-others in there along that front closest to AdMyoD.
-
 I tried being fancy and projecting to get more genes rather than just looking
-at a hard cutoff for PC1, but it didn't work as well. There might not be
+at a hard cutoff for PC2, but it didn't work as well. There might not be
 enough cells to do the jackstraw with these samples, you can see the jackstraw
 plots look weird.
 
 ```{r project-all}
-simple.data = project.pca(simple.data, do.print = FALSE)
+simple.data = ProjectPCA(simple.data, do.print = FALSE)
 projected = simple.data@pca.x.full
-projected = projected[order(-abs(projected$PC1)),]
+projected = projected[order(-abs(projected$PC2)),]
 
 simple.data = jackStraw(simple.data, num.replicate=1000, prop.freq=0.025)
 jackStrawPlot(simple.data)
-simple.data = project.pca(simple.data, do.print = FALSE,do.center=FALSE)
-genes.sig = pca.sig.genes(simple.data, pcs.use=c(1, 2), pval.cut = 0.001, use.full=TRUE)
+simple.data = ProjectPCA(simple.data, do.print = FALSE,do.center=FALSE)
+genes.sig = PCASigGenes(simple.data, pcs.use=c(1, 2), pval.cut = 0.001, use.full=TRUE)
 write.table(genes.sig, file="pc1-jackstraw-sig.txt",
 quote=FALSE, row.names=FALSE, col.names=FALSE)
 ```
@@ -386,9 +383,9 @@ Doing a GO ontology on those genes pulls out some more salient terms.
 So we can try using these genes to do PCA as well.
 
 ```{r pca-sig-genes}
-simple.data=pca(simple.data, pc.genes=genes.sig)
+simple.data=PCA(simple.data, pc.genes=genes.sig)
 rot = simple.data@pca.rot %>%
-  add_rownames(var="sample")  %>%
+  tibble::rownames_to_column(var="sample")  %>%
   left_join(simpledata, by="sample")
 ggplot(rot, aes(PC1, PC2, shape=treatment, color=batch)) +
   geom_point(size=4) +
@@ -400,9 +397,9 @@ second principal components. Now if we go back to the original data,
 we can see that Myod treatment separates from the other treatments.
 
 ```{r full-pca-sig-genes}
-seurat.data=pca(seurat.data, pc.genes=genes.sig)
+seurat.data=PCA(seurat.data, pc.genes=genes.sig)
 rot = seurat.data@pca.rot %>%
-  add_rownames(var="sample")  %>%
+  tibble::rownames_to_column(var="sample")  %>%
   left_join(welldata, by="sample")
 ggplot(rot, aes(PC1, PC2, label=treatment, color=batch)) +
   geom_text(size=2) +
@@ -416,4 +413,222 @@ ggplot(rot, aes(PC1, PC2, color=batch, label=treatment)) +
   coord_cartesian(xlim=c(-0.075, 0.00), ylim=c(-0.06, 0.05)) +
   geom_text(size=2) +
   theme_bw()
+```
+
+# Distance to AdMyoD samples
+Here we take a different tactic and find the genes that are most different
+between the AdMyoD samples and the DMSO treated samples. Then we will use those
+genes to measure how far each of the treated samples is from the AdMyoD samples
+in terms of expression of those genes.
+
+```{r admyo-distance-calculation}
+md_samples = rownames(subset(welldata, treatment %in% c("AdMyoD", "DMSO")))
+md_metadata = welldata[md_samples,]
+md_counts = plates[, md_samples]
+```
+
+We fit a model that tests for differences between AdMyoD and DMSO treatment
+while controlling for batch effects.
+
+```{r deseq2-model-fit}
+library(DESeq2)
+dds = DESeqDataSetFromMatrix(countData=md_counts, colData=md_metadata,
+                             design=~batch+treatment)
+dds = DESeq(dds)
+plotDispEsts(dds)
+res = results(dds)
+sig = subset(res, padj < 0.05) %>%
+  data.frame() %>%
+  tibble::rownames_to_column(var="gene") %>%
+  dplyr::arrange(padj)
+```
+
+There are `r nrow(subset(res, padj < 0.05))` genes tagged as differentially
+expressed between the AdMyoD and the DMSO treated samples. We'll use those
+genes to measure how far the chemical treated samples are from the AdMyoD treated
+samples. This gives different results than the PCA method we were using:
+
+```{r euclidean-distance}
+comp1class = welldata[, c("sample", "treatment", "classes")]
+colnames(comp1class) = c("sample", "comp1treat", "comp1class")
+comp2class = welldata[, c("sample", "treatment", "classes")]
+colnames(comp2class) = c("sample", "comp2treat", "comp2class")
+dds = DESeqDataSetFromMatrix(countData=plates, colData=welldata,
+                             design=~batch+treatment)
+dds = estimateSizeFactors(dds)
+ncounts = log(counts(dds, normalized=TRUE) + 1)
+dists = as.matrix(dist(t(ncounts[sig$gene,])))
+dists[diag(dists)] = NA
+dists = dists %>%
+  data.frame() %>%
+  na.omit() %>%
+  tibble::rownames_to_column() %>%
+  tidyr::gather(sample, distance, -rowname)
+colnames(dists) = c("comp1", "comp2", "distance")
+dists = dists %>%
+  left_join(comp1class, by=c("comp1"="sample")) %>%
+  left_join(comp2class, by=c("comp2"="sample")) %>%
+  group_by(comp1treat, comp2treat) %>%
+  summarise(mtreatdist=mean(distance), mtreatsd=sd(distance))
+myod = subset(dists, comp1treat == "AdMyoD") %>%
+  dplyr::arrange(mtreatdist) %>% mutate(rank=dense_rank(mtreatdist))
+ggplot(myod,
+       aes(rank, mtreatdist, label=comp2treat)) +
+  geom_point() +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+  ylab("Euclidean distance to AdMyoD")
+write_csv(myod, "normalized-count-distance-to-admyod.csv")
+```
+
+## PCA distances
+Another way is to just look at the
+We can also calculate the distances between points on PC1 and PC2 to get an
+estimate of how similar the samples are to each other.
+
+```{r pca-distances}
+pcamat = as.matrix(rot[, c("PC1", "PC2")])
+rownames(pcamat) = rot$sample
+pcadist = as.matrix(dist(pcamat))
+pcadist[diag(pcadist)] = NA
+pcadist = pcadist %>%
+  data.frame() %>%
+  na.omit() %>%
+  tibble::rownames_to_column() %>%
+  tidyr::gather(sample, distance, -rowname)
+colnames(pcadist) = c("comp1", "comp2", "distance")
+pcadist = pcadist %>%
+  left_join(comp1class, by=c("comp1"="sample")) %>%
+  left_join(comp2class, by=c("comp2"="sample")) %>%
+  group_by(comp1treat, comp2treat) %>%
+  summarise(mtreatdist=mean(distance), mtreatsd=sd(distance))
+myod = subset(pcadist, comp1treat == "AdMyoD") %>%
+  dplyr::arrange(mtreatdist) %>% mutate(rank=dense_rank(mtreatdist))
+ggplot(myod,
+       aes(rank, mtreatdist, label=comp2treat)) +
+  geom_point() +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+  ylab("Euclidean distance to AdMyoD")
+write_csv(myod, "pca-distance-to-admyod.csv")
+```
+
+```{r pca-distances-by-batch}
+comp1class = welldata[, c("sample", "treatment", "classes", "batch")]
+colnames(comp1class) = c("sample", "comp1treat", "comp1class", "batch")
+comp2class = welldata[, c("sample", "treatment", "classes", "batch")]
+colnames(comp2class) = c("sample", "comp2treat", "comp2class", "batch")
+pcamat = as.matrix(rot[, c("PC1", "PC2")])
+rownames(pcamat) = rot$sample
+pcadist = as.matrix(dist(pcamat))
+pcadist[diag(pcadist)] = NA
+pcadist = pcadist %>%
+  data.frame() %>%
+  na.omit() %>%
+  tibble::rownames_to_column() %>%
+  tidyr::gather(sample, distance, -rowname)
+colnames(pcadist) = c("comp1", "comp2", "distance")
+pcadist = pcadist %>%
+  left_join(comb1class, by=c("comp1"="sample")) %>%
+  left_join(comb2class, by=c("comp2"="sample")) %>%
+  group_by(comb1treat, comb2treat, batch.y) %>%
+  summarise(mtreatdist=mean(distance), mtreatsd=sd(distance))
+scall = subset(pcadist, comb1treat == "AdMyoD") %>%
+  dplyr::arrange(mtreatdist)
+write_csv(scall, "pca-distance-to-admyod-by-batch.csv")
+```
+
+# Positive control genes
+Here we can see along PC1 a separation of the SC and Myo samples, the AdMyoD
+separation is along component 2. We have no way of determining though if this
+separation is due to batch differences or due to actual biological signal of
+SC and Myo.
+
+```{r positive-control-combine}
+positive = positive[rownames(plates),]
+combwelldata = rbind(positive_welldata, welldata[, colnames(positive_welldata)])
+combwelldata$classes = ifelse(combwelldata$treatment == "DMSO", "DMSO",
+      ifelse(welldata$treatment == "SC", "SC", "other"))
+combwelldata$sample = rownames(combwelldata)
+combwell = cbind(positive, plates)
+library(Seurat)
+combined.data = new('seurat', raw.data=combwell)
+combined.data = Setup(combined.data, project="rubin", min.cells=3, min.genes=1000,
+                      meta.data=combwelldata, total.expr=1e4)
+combined.data = MeanVarPlot(combined.data, y.cutoff = 0.5, x.low.cutoff = 0.0125,
+                          x.high.cutoff = 3, do.contour=F,
+                          fxn.x = expMean,fxn.y = logVarDivMean)
+combined.data = PCA(combined.data, do.print=FALSE)
+PCAPlot(combined.data, 1, 2, pt.size=2)
+combined.data = ProjectPCA(combined.data, do.print = FALSE)
+rot = combined.data@pca.rot %>%
+  tibble::rownames_to_column(var="sample") %>%
+  left_join(combwelldata, by="sample")
+ggplot(rot, aes(PC1, PC2, color=batch, label=treatment)) +
+  geom_text(size=2) +
+  theme_bw()
+```
+
+If it is not possible to include SC and Myo samples on the single-cell plate,
+we could also correct for batch if we had a set of DMSO treated samples on the
+SC and Myo plates, but we need some overlapping samples so we can correct
+for the batch effect.
+
+```{r distance-to-SC}
+comb1class = combwelldata[, c("sample", "treatment", "classes", "batch")]
+colnames(comb1class) = c("sample", "comb1treat", "comb1class", "batch")
+comb2class = combwelldata[, c("sample", "treatment", "classes", "batch")]
+colnames(comb2class) = c("sample", "comb2treat", "comb2class", "batch")
+pcamat = as.matrix(rot[, c("PC1", "PC2")])
+rownames(pcamat) = rot$sample
+pcadist = as.matrix(dist(pcamat))
+pcadist[diag(pcadist)] = NA
+pcadist = pcadist %>%
+  data.frame() %>%
+  na.omit() %>%
+  tibble::rownames_to_column() %>%
+  tidyr::gather(sample, distance, -rowname)
+colnames(pcadist) = c("comp1", "comp2", "distance")
+pcadist = pcadist %>%
+  left_join(comb1class, by=c("comp1"="sample")) %>%
+  left_join(comb2class, by=c("comp2"="sample")) %>%
+  group_by(comb1treat, comb2treat) %>%
+  summarise(mtreatdist=mean(distance), mtreatsd=sd(distance))
+sc = subset(pcadist, comb1treat == "SC") %>%
+  dplyr::arrange(mtreatdist) %>% mutate(rank=dense_rank(mtreatdist))
+ggplot(sc,
+       aes(rank, mtreatdist, label=comb2treat)) +
+  geom_point() +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+  ylab("Euclidean distance to SC")
+write_csv(sc, "pca-distance-to-SC.csv")
+```
+
+```{r by-batch}
+comb1class = combwelldata[, c("sample", "treatment", "classes", "batch")]
+colnames(comb1class) = c("sample", "comb1treat", "comb1class", "batch")
+comb2class = combwelldata[, c("sample", "treatment", "classes", "batch")]
+colnames(comb2class) = c("sample", "comb2treat", "comb2class", "batch")
+pcamat = as.matrix(rot[, c("PC1", "PC2")])
+rownames(pcamat) = rot$sample
+pcadist = as.matrix(dist(pcamat))
+pcadist[diag(pcadist)] = NA
+pcadist = pcadist %>%
+  data.frame() %>%
+  na.omit() %>%
+  tibble::rownames_to_column() %>%
+  tidyr::gather(sample, distance, -rowname)
+colnames(pcadist) = c("comp1", "comp2", "distance")
+pcadist = pcadist %>%
+  left_join(comb1class, by=c("comp1"="sample")) %>%
+  left_join(comb2class, by=c("comp2"="sample")) %>%
+  group_by(comb1treat, comb2treat, batch.y) %>%
+  summarise(mtreatdist=mean(distance), mtreatsd=sd(distance))
+scall = subset(pcadist, comb1treat == "SC") %>%
+  dplyr::arrange(mtreatdist)
+write_csv(scall, "pca-distance-to-SC-by-batch.csv")
 ```
