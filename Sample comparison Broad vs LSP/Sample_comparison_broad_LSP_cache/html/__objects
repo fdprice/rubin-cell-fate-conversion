@@ -1,0 +1,11 @@
+load-libaries	
+read-plates	
+load-plates	
+massage-well-identity-data	identities	welldata	welldata_fn
+verify-data	
+load-positive-control-data	identities	positive	positive_fn	positive_samples	positive_welldata
+plot-genes-detected	outliers	welldata
+low-counts-plate	
+boxplot-counts-plate	welldata
+failed-wells	welldata
+plot-complexity	

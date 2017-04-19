@@ -1,0 +1,9 @@
+base
+ggplot2
+useful
+readr
+dplyr
+tidyr
+stringr
+rmarkdown
+biomaRt

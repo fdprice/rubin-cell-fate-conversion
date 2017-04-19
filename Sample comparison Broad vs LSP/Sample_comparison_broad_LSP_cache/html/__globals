@@ -1,0 +1,11 @@
+load-libaries	library
+read-plates	[[	basename	cbind	colnames	colnames<-	do.call	lapply	list.files	paste	read.table	save	setwd	sort	strsplit
+load-plates	load
+massage-well-identity-data	::	%>%	$<-	batch	c	colnames	colnames<-	column	data.frame	gather	left_join	mutate	paste	plates	read_csv	row	rownames<-	str_split_fixed	treatment	well
+verify-data	colnames	complete.cases	corner	dim	plates	rownames	table	welldata
+load-positive-control-data	$	$<-	colnames	data.frame	plates	read.table	rownames	str_split_fixed
+plot-genes-detected	<	>	~	$	$<-	abs	aes	ave	batch	colSums	facet_wrap	genes_detected	genes_detected_padj	geom_bar	geom_hline	ggplot	p.adjust	plates	pnorm	scale	scale_x_discrete	subset	theme_bw	treatment	xlab	ylab
+low-counts-plate	aes	batch	genes_detected	geom_boxplot	ggplot	theme_bw	welldata	xlab	ylab
+boxplot-counts-plate	$<-	aes	batch	colSums	counts	geom_boxplot	ggplot	plates	theme_bw	xlab	ylab
+failed-wells	%>%	<	$<-	batch	colSums	failed	group_by	plates	sum	summarise
+plot-complexity	aes	batch	counts	genes_detected	geom_smooth	ggplot	theme_bw	welldata	xlab	ylab
