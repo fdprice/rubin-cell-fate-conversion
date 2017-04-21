@@ -216,6 +216,9 @@ We'll also drop all genes with that don't have at least 100 counts total and
 are not seen in at least 4 samples. This cuts down the number of genes we
 are considering to ~13,500.
 
+This may be too stringent... considering something like MyoD or Pax7 may only show up in the postive controls and only in a few of the samples that are going through reprogramming... if this is the case the tol
+total number of reads may never reach 100...
+
 ```{r drop-low-genes}
 plates = plates[rowSums(plates > 0) > 4 & rowSums(plates) > 100,]
 ```
@@ -239,6 +242,7 @@ install.packages("devtools")
 library(devtools)
 install_url("https://github.com/satijalab/seurat/releases/download/v1.4.0/Seurat_1.4.0.14.tgz", binary = TRUE)
 library(Seurat)
+# seurat.plates = plates(,c("M1B","M2B"))
 
 seurat.raw.data = data.frame(log(plates + 1))
 seurat.data = new('seurat', raw.data=seurat.raw.data)
@@ -256,11 +260,17 @@ seurat.data = MeanVarPlot(seurat.data, fxn.x = expMean, fxn.y = logVarDivMean, y
 
 We'll focus on component 1 since this is typically a good starting point.
 
-
 ```{r pca-plot}
-seurat.data = PCA(seurat.data, do.print=FALSE)
+seurat.data = PCA(seurat.data, do.print=TRUE)
 PCAPlot(seurat.data, 1, 2, pt.size=2)
-pcHeatmap(seurat.data, pc.use = 1, do.balanced = FALSE)
+VizPCA(seurat.data,1:2)
+PCHeatmap(seurat.data, pc.use = 1, do.balanced = FALSE)
+```
+
+Let's try tSNE to see what materializes.
+```{ tSNE-plot}
+TSNEseurat = RunTSNE(seurat.data, dim_embed = 3, perplexity = 30, max_iter=300)
+TSNEPlot(TSNEseurat, 1, 2, pt.size=2)
 
 ```
 
