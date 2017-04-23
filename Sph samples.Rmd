@@ -59,17 +59,22 @@ welldata = identities %>% dplyr::select(batch, well) %>%
 rownames(welldata) = colnames(plates)
 welldata$sample = colnames(plates)
 ```
+# Remove sph samples from dataframe
+```{segragate Sph samples}
+Sphplates = plates[, c(1,23,24,25,47,48,49,71,72,73,95,96,97,119,120,121,143,144,145,167,168,169,191,192,193,194,216,217,218,240,241,242,264,265,266,288,289,290,312,313,314,336,337,338,360,361,362,384)]
+Sphwelldata = welldata[c(1,23,24,25,47,48,49,71,72,73,95,96,97,119,120,121,143,144,145,167,168,169,191,192,193,194,216,217,218,240,241,242,264,265,266,288,289,290,312,313,314,336,337,338,360,361,362,384),]
+```
 
 Verify that the samples match up between the read counts and the metadata dataframe
 and make sure there are no NA counts.
 
 ```{r verify-data}
-dim(welldata)
-dim(plates)
-table(rownames(welldata) %in% colnames(plates))
-corner(plates)
-corner(welldata)
-table(complete.cases(plates))
+dim(Sphwelldata)
+dim(Sphplates)
+table(rownames(Sphwelldata) %in% colnames(Sphplates))
+corner(Sphplates)
+corner(Sphwelldata)
+table(complete.cases(Sphplates))
 ```
 
 Looks like we are good to go. While we're at it we will load the positive
