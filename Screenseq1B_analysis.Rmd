@@ -134,12 +134,17 @@ write.csv(Merged_welldata, "~/rubin-cell-fate-conversion/Merged_welldata.csv")
 Merged_welldata = read_csv("~/rubin-cell-fate-conversion/Merged_welldata.csv", col_names = TRUE)
 names(Merged_welldata)[names(Merged_welldata) == 'X1'] <- 'Row.names'
 
+#now to select the experiment
+Sseqwelldata = subset(welldata, Experiment %in% "Sseq")
+Sseqwelldata$sample = rownames(Sseqwelldata)
+Sseqdata = plates[, rownames(Sseqwelldata)]
+
 #OK now lets go back to calling Merged_welldata just welldata for simplicity of future scripts
 
 welldata = Merged_welldata
 plates = Merged_data
 
-# Below I was trying to get the rownames back into the right place for Merged_welldata. It is # currently not working.
+# Below I was trying to get the rownames back into the right place for Merged_welldata. It is     # currently not working.
 Merged_welldata[,0] <- NULL
 Merged_welldata[,1] <- NULL
 
