@@ -18,6 +18,7 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(stringr)
+library(cowplot)
 ```
 
 Read in the data for each plate into one big dataframe, make unique IDs for
@@ -59,6 +60,17 @@ welldata = identities %>% dplyr::select(batch, well) %>%
 rownames(welldata) = colnames(plates)
 welldata$sample = colnames(plates)
 ```
+# Now I want to remove the sph samples based on experiment to create a new df and appropriate welldata.... Below is how I would do this for one plate... Remove sph samples from dataframe
+```{segragate Sph samples}
+# Try something like this in the future....
+# create sphlist of the samples
+# plates = plates[!colnames(plates) %in% sphlist,]
+# I am not sure how to do this for both plates at the same time? I.e. sphlist +384 to get the later columns
+# But for right now use below.
+
+plates = plates[, c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 193, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 217, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 241, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 265, 267, 268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 289, 291, 292, 293, 294, 295, 296, 297, 298, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 332, 333, 334, 335, 339, 340, 341, 342, 343, 344, 345, 346, 347, 348, 349, 350, 351, 352, 353, 354, 355, 356, 357, 358, 359, 363, 364, 365, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378, 379, 380, 381, 382, 383)]
+welldata = welldata[c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 193, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 217, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 241, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 265, 267, 268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 289, 291, 292, 293, 294, 295, 296, 297, 298, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 332, 333, 334, 335, 339, 340, 341, 342, 343, 344, 345, 346, 347, 348, 349, 350, 351, 352, 353, 354, 355, 356, 357, 358, 359, 363, 364, 365, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378, 379, 380, 381, 382, 383),]
+```
 
 Verify that the samples match up between the read counts and the metadata dataframe
 and make sure there are no NA counts.
@@ -79,12 +91,63 @@ control data.
 positive_fn = "data/Feo_positive_controls.unq.refseq.umi.SC_and_Myoblast_Raw.txt"
 positive = read.table(positive_fn, header=TRUE, row.names=rownames(plates))
 positive$id = NULL
-positive_samples = data.frame(str_split_fixed(colnames(positive), "_", 3))
-identities = data.frame(str_split_fixed(colnames(plates), "_", 3))$X1
-positive_welldata = data.frame(batch=positive_samples$X1,
-                               treatment=positive_samples$X1,
-                               well=positive_samples$X1)
+# positive_samples = data.frame(str_split_fixed(colnames(positive), "_", 3))
+# identities = data.frame(str_split_fixed(colnames(plates), "_", 3))$X1
+# positive_welldata = data.frame(batch=positive_samples$X1,
+                              # treatment=positive_samples$X1,
+                              # well=positive_samples$X1)
+
+poswelldata_fn = "metadata/List of all samples.csv"
+poswelldata = read_csv(poswelldata_fn) %>%
+  gather(column, treatment, -row) %>%
+  mutate(well=paste(row, column, sep="")) %>%
+  dplyr::select(well, treatment)
+pos_identities = data.frame(str_split_fixed(colnames(positive), "_", 3))
+colnames(pos_identities) = c("batch", "drop", "well")
+pos_identities$id = colnames(positive)
+poswelldata = pos_identities %>% dplyr::select(batch, well) %>%
+         left_join(poswelldata, by="well")
+rownames(poswelldata) = colnames(positive)
+poswelldata$sample = colnames(positive)
+poswelldata$treatment = poswelldata$batch
+
+
+
+
 ```
+
+Lets merge the positive samples with our plates dataframe
+
+```{Merge-data-frames}
+Merged_data = merge(plates, positive, by = 0, all = TRUE)
+Merged_welldata = rbind(welldata, poswelldata)
+
+# Now to re-create rownames in the merged data
+rownames(Merged_data) <- Merged_data[,1]
+Merged_data[,1] <- NULL
+
+# Create a new column for the Merged_welldata to include experiment
+Merged_welldata$Experiment = NA
+# Now export and add Values then re-import. In the future do this earlier
+write.csv(Merged_welldata, "~/rubin-cell-fate-conversion/Merged_welldata.csv")
+
+Merged_welldata = read_csv("~/rubin-cell-fate-conversion/Merged_welldata.csv", col_names = TRUE)
+names(Merged_welldata)[names(Merged_welldata) == 'X1'] <- 'Row.names'
+
+#OK now lets go back to calling Merged_welldata just welldata for simplicity of future scripts
+
+welldata = Merged_welldata
+plates = Merged_data
+
+# Below I was trying to get the rownames back into the right place for Merged_welldata. It is # currently not working.
+Merged_welldata[,0] <- NULL
+Merged_welldata[,1] <- NULL
+
+write.csv(Merged_data, "~/rubin-cell-fate-conversion/Merged_data.csv")
+```
+```
+
+
 
 Now we will calculate some summary statistics about each sample. First let's look at how many reads originate from each sample.
 
@@ -122,6 +185,7 @@ Now we can show the total counts per sample in a box plot format
 
 ```{r boxplot-counts-plate}
 welldata$counts = colSums(plates)
+welldata$means = colMeans(plates)
 ggplot(welldata, aes(batch, counts)) + geom_boxplot() +
    ylab("total counts") +
    xlab("") +
@@ -169,13 +233,13 @@ samples with a low amount of genes detected.
 # render("Screenseq1B_analysis.Rmd")
 ```{r genes-detected-histogram}
 ggplot(welldata, aes(genes_detected)) + geom_histogram() +
-   theme_bw() + xlab("genes with counts > 0")
+   theme_bw() + xlab("# of genes detected per sample")
 ```
 
 Here we drop those samples, using a cutoff of 7,500 genes.
-
+I adjusted this to 3500 when including the SC positive controls as many of these did not pass this cutoff.
 ```{r drop-low-genes-detected}
-welldata = subset(welldata, genes_detected > 7500)
+welldata = subset(welldata, genes_detected > 3500)
 plates = plates[, rownames(welldata)]
 ```
 
@@ -217,11 +281,11 @@ We'll also drop all genes with that don't have at least 100 counts total and
 are not seen in at least 4 samples. This cuts down the number of genes we
 are considering to ~13,500.
 
-This may be too stringent... considering something like MyoD or Pax7 may only show up in the postive controls and only in a few of the samples that are going through reprogramming... if this is the case the tol
-total number of reads may never reach 100...
+This may be too stringent... considering something like MyoD or Pax7 may only show up in the postive controls and only in a few of the samples that are going through reprogramming... if this is the case the total number of reads may be rather low. 
+
 
 ```{r drop-low-genes}
-plates = plates[rowSums(plates > 0) > 4 & rowSums(plates) > 60,]
+plates = plates[rowSums(plates > 0) > 4 & rowSums(plates) > 10,]
 ```
 
 This is what we're left with in terms of samples:
@@ -298,6 +362,10 @@ Myod and DMSO samples, doing PCA and finding the genes most strongly associated
 with whatever component separates out the Myod and DMSO samples.
 
 ```{r just-dmso-myod-subset}
+Sseqwelldata = subset(welldata, Experiment %in% "Sseq")
+Sseqwelldata$sample = rownames(Sseqwelldata)
+Sseqdata = plates[, rownames(Sseqwelldata)]
+
 simpledata = subset(welldata, treatment %in% c("DMSO", "AdMyoD"))
 simpledata$sample = rownames(simpledata)
 simple = plates[, rownames(simpledata)]
@@ -314,8 +382,7 @@ rot = simple.data@pca.rot %>%
   left_join(simpledata, by="sample")
 ```
 
-We can see that PC2 separates out the AdMyoD and DMSO samples and there is
-also an effect of batch along PC1.
+We can see that PC1 (or for some plates PC2) separates out the AdMyoD and DMSO samples and there is also an effect of batch along PC1.
 
 ```{r pca-just-dmso-myod}
 ggplot(rot, aes(PC1, PC2, shape=treatment, color=batch)) +
@@ -330,8 +397,8 @@ set all expressed genes.
 
 ```{r pc1-top-100-genes}
 components = simple.data@pca.x
-components = components[order(-abs(components$PC2)),]
-write.table(head(rownames(components), 100), file="myo-vs-dmso-pc2.txt", quote=FALSE,
+components = components[order(-abs(components$PC1)),]
+write.table(head(rownames(components), 100), file="AdMyoD-vs-dmso-pc1.txt", quote=FALSE,
             row.names=FALSE, col.names=FALSE)
 ```
 
@@ -365,6 +432,10 @@ ggplot(rot, aes(PC1, PC2, color=classes, label=treatment)) +
   theme_bw()
 ```
 
+```{r pc2-top-50-genes}
+write.table(head(rownames(components)[order(-abs(components$PC1))], 50),
+            file="pc1 all post simplified.txt", quote=FALSE, row.names=FALSE, col.names=FALSE)
+```
 Nothing really clusters with Myod, but there might be some chemicals moving
 towards it if we zoom in on the sector closest to the AdMyoD samples:
 
