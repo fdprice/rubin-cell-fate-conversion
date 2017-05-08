@@ -33,25 +33,48 @@ plate_reader = function(fn) {
 }
 plates_fns = sort(list.files("data/1B", pattern="\\.dat", full.names=TRUE))
 plates = do.call(cbind, lapply(plates_fns, plate_reader))
+posplate = plates[, startsWith(colnames(plates), "POS_POSP3")]
+mplates = plates[, !startsWith(colnames(plates), "POS_POSP3")]
 ```
 
 Create a dataframe of the metadata about each sample. This has an identifier
 for a sample, Which well it came from, which batch and what it was treated with.
 
 ```{r massage-well-identity-data}
-welldata_fn = "metadata/Compound Layout 384w1B.csv"
-welldata = read_csv(welldata_fn) %>%
+mwelldata_fn = "metadata/Compound Layout 384w1B.csv"
+mwelldata = read_csv(mwelldata_fn) %>%
   gather(column, treatment, -row) %>%
   mutate(well=paste(row, column, sep="")) %>%
   dplyr::select(well, treatment)
-identities = data.frame(str_split_fixed(colnames(plates), "_", 3))
+identities = data.frame(str_split_fixed(colnames(mplates), "_", 3))
 colnames(identities) = c("batch", "drop", "well")
-identities$id = colnames(plates)
-welldata = identities %>% dplyr::select(batch, well) %>%
-         left_join(welldata, by="well")
-rownames(welldata) = colnames(plates)
-welldata$sample = colnames(plates)
+identities$id = colnames(mplates)
+mwelldata = identities %>% dplyr::select(batch, well) %>%
+         left_join(mwelldata, by="well")
+rownames(mwelldata) = colnames(mplates)
+mwelldata$sample = colnames(mplates)
 ```
+
+```{r massage-well-identity-data-posplate}
+poswelldata_fn = "metadata/Compound Layout Pos.csv"
+poswelldata = read_csv(poswelldata_fn) %>%
+  gather(column, treatment, -row) %>%
+  mutate(well=paste(row, column, sep="")) %>%
+  dplyr::select(well, treatment)
+identities = data.frame(str_split_fixed(colnames(posplate), "_", 3))
+colnames(identities) = c("batch", "drop", "well")
+identities$id = colnames(posplate)
+poswelldata = identities %>% dplyr::select(batch, well) %>%
+         left_join(poswelldata, by="well")
+rownames(poswelldata) = colnames(posplate)
+poswelldata$sample = colnames(posplate)
+```
+
+```{r combine-data-and-welldata}
+counts = cbind(mplates, posplate)
+welldata = rbind(mwelldata, poswelldata)
+```
+
 # Now I want to remove the sph samples based on experiment to create a new df and appropriate welldata.... Below is how I would do this for one plate... Remove sph samples from dataframe
 ```{segragate Sph samples}
 # Try something like this in the future....
