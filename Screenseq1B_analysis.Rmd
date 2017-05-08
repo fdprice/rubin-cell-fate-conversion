@@ -24,23 +24,15 @@ library(cowplot)
 Read in the data for each plate into one big dataframe, make unique IDs for
 each batch/well combination and use those IDs as the column names.
 
-```{r read-plates, eval=!file.exists("plates.RData")}
-setwd("~/rubin-cell-fate-conversion")
-
-# Creating a function to organize the data
+```{r read-plates}
 plate_reader = function(fn) {
   batch = strsplit(basename(fn), ".", fixed=TRUE)[[1]][1]
   data = read.table(fn, header=TRUE, row.names=1)
   colnames(data) = paste(batch, colnames(data), sep="_")
   data
 }
-plates_fns = sort(list.files("data", pattern="\\.dat", full.names=TRUE))
+plates_fns = sort(list.files("data/1B", pattern="\\.dat", full.names=TRUE))
 plates = do.call(cbind, lapply(plates_fns, plate_reader))
-save(plates, file="plates.RData")
-```
-
-```{r load-plates}
-load("plates.RData")
 ```
 
 Create a dataframe of the metadata about each sample. This has an identifier
@@ -164,7 +156,7 @@ welldata$genes_detected_padj = p.adjust(welldata$genes_detected_pval, method="BH
 outliers = subset(welldata, genes_detected_padj < 0.1)
 ```
 
-Now we will look at the number of genes 
+Now we will look at the number of genes
 
 ```{r plot-genes-detected}
 ggplot(outliers, aes(treatment, genes_detected, fill=batch)) +
@@ -286,7 +278,7 @@ We'll also drop all genes with that don't have at least 100 counts total and
 are not seen in at least 4 samples. This cuts down the number of genes we
 are considering to ~13,500.
 
-This may be too stringent... considering something like MyoD or Pax7 may only show up in the postive controls and only in a few of the samples that are going through reprogramming... if this is the case the total number of reads may be rather low. 
+This may be too stringent... considering something like MyoD or Pax7 may only show up in the postive controls and only in a few of the samples that are going through reprogramming... if this is the case the total number of reads may be rather low.
 
 
 ```{r drop-low-genes}
