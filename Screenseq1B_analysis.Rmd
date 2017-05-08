@@ -75,6 +75,19 @@ counts = cbind(mplates, posplate)
 welldata = rbind(mwelldata, poswelldata)
 ```
 
+
+```{r add-sph-id}
+welldata$sph = !welldata$treatment %in% c("DMSO", "AdMyoD")
+```
+
+If you want to get just the sph wellids or counts, use the sph column to select
+the wells, for example:
+
+```{r how-to-subset-sph-only}
+sphwelldata = subset(welldata, sph == TRUE)
+sphcounts = counts[, rownames(sphwelldata)]
+```
+
 # Now I want to remove the sph samples based on experiment to create a new df and appropriate welldata.... Below is how I would do this for one plate... Remove sph samples from dataframe
 ```{segragate Sph samples}
 # Try something like this in the future....
